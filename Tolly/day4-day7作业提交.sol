@@ -1,0 +1,272 @@
+day4// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract AuctionHouse {//开始定义这个智能合约了
+    address public owner;//先规定好这些数据
+    string public item;
+    uint256 public auctionEndTime;
+
+    address private highestBidder;
+    uint256 private highestBid;
+
+    bool public ended;
+
+    mapping(address => uint256) public bids;//映射对应好
+    address[] public bidders;  
+    constructor(string memory _item, uint256 _biddingTime){
+        owner = msg.sender;
+        item = _item;
+        auctionEndTime = block.timestamp + _biddingTime;
+    }
+    function bid(uint256 amount) external {
+        require(block.timestamp < auctionEndTime, "Auction has already ended.");
+        require(amount > 0, "Bid amount must be greater than zero.");
+        require(amount > bids[msg.sender], "New bid must be higher than your current bid.");
+        if (bids[msg.sender] == 0) {
+            bidders.push(msg.sender);
+        }
+        bids[msg.sender] = amount;
+        if (amount > highestBid) {
+            highestBid = amount;
+            highestBidder = msg.sender;
+        }
+    }
+    function endAuction() external {
+        require(block.timestamp >= auctionEndTime, "Auction hasn't ended yet.");
+        require(!ended, "Auction end already called.");
+
+        ended = true;
+    }
+    function getAllBidders() external view returns (address[] memory){
+        return bidders;
+    }
+    function getWinner() external view returns (address, uint256){
+        require(ended, "Auction has not ended yet.");
+        return (highestBidder, highestBid);
+    }
+}
+day5
+
+pragma solidity ^0.8.0;
+contract AdminOnly {
+    address public owner;
+    uint256 public treasureAmount;
+    mapping(address => uint256) public withdrawalAllowance;
+    mapping(address => bool) public hasWithdrawn;
+
+    constructor() {
+        owner = ms// SPDX-License-Identifier: MITg.sender;
+    }
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Access denied: Only the owner can perform this action");
+        _;
+    }
+    function addTreasure(uint256 amount) public onlyOwner {
+        treasureAmount += amount;
+    }
+    function approveWithdrawal(address recipient, uint256 amount) public onlyOwner {
+        require(amount <= treasureAmount, "Not enough treasure available");
+        withdrawalAllowance[recipient] = amount;
+    }
+    function withdrawTreasure(uint256 amount) public {
+        if(msg.sender == owner){
+            require(amount <= treasureAmount, "Not enough treasury available for this action.");
+            treasureAmount -= amount;
+            return;
+        }
+        uint256 allowance = withdrawalAllowance[msg.sender];
+        require(allowance > 0, "You don't have any treasure allowance");
+        require(!hasWithdrawn[msg.sender], "You have already withdrawn your treasure");
+        require(allowance <= treasureAmount, "Not enough treasure in the chest");
+        require(allowance >= amount, "Cannot withdraw more than you are allowed");
+        hasWithdrawn[msg.sender] = true;
+        treasureAmount -= allowance;
+        withdrawalAllowance[msg.sender] = 0;
+    }
+    function resetWithdrawalStatus(address user) public onlyOwner {
+        hasWithdrawn[user] = false;
+    }
+    function transferOwnership(address newOwner) public onlyOwner {
+        require(newOwner != address(0), "Invalid address");
+        owner = newOwner;
+    }
+    function getTreasureDetails() public view onlyOwner returns (uint256) {
+        return treasureAmount;
+    }
+}
+day6
+//SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract EtherPiggyBank{
+
+    address public bankManager;
+
+    address[] members;
+
+    mapping(address => bool) public registeredMembers;
+
+    mapping(address => uint256) balance;
+
+    constructor(){
+        bankManager = msg.sender;
+        members.push(msg.sender);
+    }
+
+    modifier onlyBankManager(){
+        require(msg.sender == bankManager, "Only bank manager can perform this action");
+        _;
+    }
+
+    modifier onlyRegisteredMember(){
+        require(registeredMembers[msg.sender], "Member not registered");
+        _;
+    }
+
+    function addMembers(address _member) public onlyBankManager{
+
+        require(_member != address(0), "Invalid address");
+        require(_member != msg.sender, "Bank Manager is already a member");
+        require(!registeredMembers[_member], "Member already registered");
+
+        registeredMembers[_member] = true;
+
+        members.push(_member);
+    }
+
+    function getMembers() public view returns(address[] memory){
+
+        return members;
+    }
+
+    function depositAmountEther() public payable onlyRegisteredMember{
+
+        require(msg.value > 0, "Invalid amount");
+
+        balance[msg.sender] += msg.value;
+    }
+
+    function withdrawAmount(uint256 _amount) public onlyRegisteredMember{
+
+        require(_amount > 0, "Invalid amount");
+
+        require(balance[msg.sender] >= _amount, "Insufficient balance");
+
+        balance[msg.sender] -= _amount;
+    }
+
+    function getBalance(address _member) public view returns(uint256){
+
+        require(_member != address(0), "Invalid address");
+
+        return balance[_member];
+    }
+
+}
+day7
+//SPDX-License-Identifier:MIT
+pragma solidity ^0.8.0;
+
+contract SimpleIOU{
+
+    address public owner;
+
+    mapping(address => bool) public registeredFriends;
+    address[] public friendList;
+
+    mapping(address => uint256) public balances;
+
+    mapping(address => mapping(address => uint256)) public debts;
+
+    constructor() {
+        owner = msg.sender;
+        registeredFriends[msg.sender] = true;
+        friendList.push(msg.sender);
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can perform this action");
+        _;
+    }
+
+    modifier onlyRegistered() {
+        require(registeredFriends[msg.sender], "You are not registered");
+        _;
+    }
+
+    function addFriend(address _friend) public onlyOwner {
+        require(_friend != address(0), "Invalid address");
+        require(!registeredFriends[_friend], "Friend already registered");
+
+        registeredFriends[_friend] = true;
+        friendList.push(_friend);
+    }
+
+    function depositIntoWallet() public payable onlyRegistered {
+        require(msg.value > 0, "Must send ETH");
+
+        balances[msg.sender] += msg.value;
+    }
+
+    function recordDebt(address _debtor, uint256 _amount) public onlyRegistered {
+        require(_debtor != address(0), "Invalid address");
+        require(registeredFriends[_debtor], "Address not registered");
+        require(_amount > 0, "Amount must be greater than 0");
+
+        debts[_debtor][msg.sender] += _amount;
+    }
+
+    function payFromWallet(address _creditor, uint256 _amount) public onlyRegistered {
+        require(_creditor != address(0), "Invalid address");
+        require(registeredFriends[_creditor], "Creditor not registered");
+        require(_amount > 0, "Amount must be greater than 0");
+        require(debts[msg.sender][_creditor] >= _amount, "Debt amount incorrect");
+        require(balances[msg.sender] >= _amount, "Insufficient balance");
+
+        balances[msg.sender] -= _amount;
+        balances[_creditor] += _amount;
+        debts[msg.sender][_creditor] -= _amount;
+    }
+
+    function transferEther(address payable _to, uint256 _amount) public onlyRegistered {
+        require(_to != address(0), "Invalid address");
+        require(registeredFriends[_to], "Recipient not registered");
+        require(balances[msg.sender] >= _amount, "Insufficient balance");
+
+        balances[msg.sender] -= _amount;
+
+        _to.transfer(_amount);
+
+        balances[_to] += _amount;
+    }
+
+    function transferEtherViaCall(address payable _to, uint256 _amount) public onlyRegistered {
+        require(_to != address(0), "Invalid address");
+        require(registeredFriends[_to], "Recipient not registered");
+        require(balances[msg.sender] >= _amount, "Insufficient balance");
+
+        balances[msg.sender] -= _amount;
+
+        (bool success, ) = _to.call{value: _amount}("");
+
+        balances[_to] += _amount;
+
+        require(success, "Transfer failed");
+    }
+
+    function withdraw(uint256 _amount) public onlyRegistered {
+
+        require(balances[msg.sender] >= _amount, "Insufficient balance");
+
+        balances[msg.sender] -= _amount;
+
+        (bool success, ) = payable(msg.sender).call{value: _amount}("");
+
+        require(success, "Withdrawal failed");
+    }
+
+    function checkBalance() public view onlyRegistered returns (uint256) {
+
+        return balances[msg.sender];
+    }
+}
